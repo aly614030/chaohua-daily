@@ -40,7 +40,15 @@ class CollectorAccessibilityService:AccessibilityService(){
             if(!entered)return null
             delay(6000)
         }
-        val first=allText();val checkin=match(first,Regex("今日签到\\s*([0-9.]+\\s*[万亿]?人?)"))?:return null
+        var checkin:String?=null
+        repeat(10){
+            if(checkin==null){
+                val first=allText()
+                checkin=match(first,Regex("今日\\s*签到[^0-9]{0,12}([0-9.]+\\s*[万亿]?\\s*人?)"))
+                    ?:match(first,Regex("签到[^0-9]{0,12}([0-9.]+\\s*[万亿]?\\s*人?)"))
+                if(checkin==null)delay(700)
+            }
+        }
         var superLike:String?=null
         repeat(5){
             if(superLike==null){
@@ -59,7 +67,8 @@ class CollectorAccessibilityService:AccessibilityService(){
         }
         val posts=match(detail,Regex("今日新帖\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val interactions=match(detail,Regex("今日新增互动\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val reads=match(detail,Regex("([0-9.]+\\s*[万亿]?)\\s*阅读"))?:return null
         performGlobalAction(GLOBAL_ACTION_BACK);delay(1200)
-        return CaptureRow(topic.name,superLike!!,posts,interactions,checkin,reads)
+        if(checkin==null)return null
+        return CaptureRow(topic.name,superLike!!,posts,interactions,checkin!!,reads)
     }
     private fun allText():String{val out=mutableListOf<String>();fun walk(n:AccessibilityNodeInfo?){if(n==null)return;n.text?.toString()?.takeIf{it.isNotBlank()}?.let(out::add);n.contentDescription?.toString()?.takeIf{it.isNotBlank()}?.let(out::add);for(i in 0 until n.childCount)walk(n.getChild(i))};walk(rootInActiveWindow);return out.joinToString("\n")}
     private fun findExact(s:String)=rootInActiveWindow?.findAccessibilityNodeInfosByText(s)?.firstOrNull{it.text?.toString()==s}
