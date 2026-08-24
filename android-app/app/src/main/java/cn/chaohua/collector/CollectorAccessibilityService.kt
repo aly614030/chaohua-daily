@@ -30,12 +30,16 @@ class CollectorAccessibilityService:AccessibilityService(){
         if(results.size==activeTopics.size&&!test)RepositoryClient(applicationContext).upload(results)
     }
     private suspend fun capture(topic:Topic):CaptureRow?{
-        val intent=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://searchall?q=${Uri.encode(topic.name+"超话")}" )).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
-        runCatching{startActivity(intent)}.getOrElse{return null};delay(5000)
-        var entered=clickAnyText(listOf(topic.name+"超话",topic.name),8)
-        if(!entered){clickAnyText(listOf("超话"),3);delay(1800);entered=clickAnyText(listOf(topic.name+"超话",topic.name,"进入超话"),8)}
-        if(!entered)return null
-        delay(6000)
+        val direct=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://pageinfo?containerid=${Uri.encode(topic.id)}")).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
+        runCatching{startActivity(direct)}.getOrElse{return null};delay(7000)
+        if(!allText().contains("今日签到")){
+            val search=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://searchall?q=${Uri.encode(topic.name+"超话")}" )).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
+            runCatching{startActivity(search)}.getOrElse{return null};delay(5000)
+            var entered=clickAnyText(listOf(topic.name+"超话","#${topic.name}超话#","进入超话"),8)
+            if(!entered){clickAnyText(listOf("超话"),3);delay(1800);entered=clickAnyText(listOf(topic.name+"超话","#${topic.name}超话#","进入超话"),8)}
+            if(!entered)return null
+            delay(6000)
+        }
         val first=allText();val checkin=match(first,Regex("今日签到\\s*([0-9.]+\\s*[万亿]?人?)"))?:return null
         gesture(.78f,.18f,.30f,.18f);delay(1800)
         val second=allText();val superLike=match(second,Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))?:return null
@@ -53,6 +57,9 @@ class CollectorAccessibilityService:AccessibilityService(){
             for(label in labels){
                 val nodes=rootInActiveWindow?.findAccessibilityNodeInfosByText(label).orEmpty()
                 for(node in nodes){
+                    val shown=listOfNotNull(node.text?.toString(),node.contentDescription?.toString()).map{it.trim()}
+                    val exactEnough=shown.any{it==label||it=="#$label#"||it.startsWith("$label ")||it.startsWith("$label\n")}
+                    if(!exactEnough)continue
                     var target:AccessibilityNodeInfo?=node
                     while(target!=null&&!target.isClickable)target=target.parent
                     if(target?.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)return true
