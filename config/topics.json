@@ -1,0 +1,13 @@
+{
+  "topics": [
+    { "name": "时代少年团", "id": "10080892b1f367dec8ee89a39109d0b5fe9c0d", "enabled": true },
+    { "name": "马嘉祺", "id": "100808d084599a8d651890c335344604dc6441", "enabled": true },
+    { "name": "丁程鑫", "id": "10080893fb74e5ad334664e9ed75257a99cb12", "enabled": true },
+    { "name": "宋亚轩", "id": "100808f2892dd79cfb5ef048fd0f0926d643b0", "enabled": true },
+    { "name": "刘耀文", "id": "100808b8be41fe83ba990678f3e11a63fbe041", "enabled": true },
+    { "name": "张真源", "id": "1008081631871d44bb53c07db75a5ef288af6a", "enabled": true },
+    { "name": "严浩翔", "id": "100808b160efbd4e3821e749d578259ab59157", "enabled": true },
+    { "name": "贺峻霖", "id": "100808da1f664a39066684045432530979265a", "enabled": true }
+  ],
+  "metrics": ["superLike", "postsWan", "interactionsWan", "checkins", "readsWan"]
+}
