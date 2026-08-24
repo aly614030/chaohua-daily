@@ -53,7 +53,7 @@ class CollectorAccessibilityService:AccessibilityService(){
         repeat(5){
             if(superLike==null){
                 superLike=match(allText(),Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))
-                if(superLike==null){gesture(.90f,.15f,.08f,.15f);delay(1400)}
+                if(superLike==null){if(!scrollHeaderForward())gesture(.90f,.15f,.08f,.15f);delay(1400)}
             }
         }
         if(superLike==null)return null
@@ -112,8 +112,13 @@ class CollectorAccessibilityService:AccessibilityService(){
         return false
     }
     private fun match(s:String,r:Regex)=r.find(s)?.groupValues?.get(1)?.replace(" ","")
-    private suspend fun gesture(x1:Float,y1:Float,x2:Float,y2:Float)=suspendCancellableCoroutine<Unit>{c->val dm=resources.displayMetrics;val p=Path().apply{moveTo(x1*dm.widthPixels,y1*dm.heightPixels);lineTo(x2*dm.widthPixels,y2*dm.heightPixels)};dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(p,0,500)).build(),object:GestureResultCallback(){override fun onCompleted(g:GestureDescription?){c.resume(Unit){}}override fun onCancelled(g:GestureDescription?){c.resume(Unit){}}},null)}
-    private suspend fun gesturePixels(x:Float,y:Float)=suspendCancellableCoroutine<Unit>{c->val p=Path().apply{moveTo(x,y);lineTo(x+1,y+1)};dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(p,0,120)).build(),object:GestureResultCallback(){override fun onCompleted(g:GestureDescription?){c.resume(Unit){}}override fun onCancelled(g:GestureDescription?){c.resume(Unit){}}},null)}
+    private fun scrollHeaderForward():Boolean{
+        val dm=resources.displayMetrics;val candidates=mutableListOf<Pair<AccessibilityNodeInfo,Rect>>()
+        fun walk(n:AccessibilityNodeInfo?){if(n==null)return;val r=Rect();n.getBoundsInScreen(r);if(n.isScrollable&&r.width()>dm.widthPixels*.45f&&r.height()<dm.heightPixels*.18f&&r.centerY()<dm.heightPixels*.35f)candidates.add(n to r);for(i in 0 until n.childCount)walk(n.getChild(i))}
+        walk(rootInActiveWindow);return candidates.sortedBy{it.second.height()}.any{it.first.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)}
+    }
+    private suspend fun gesture(x1:Float,y1:Float,x2:Float,y2:Float)=suspendCancellableCoroutine<Unit>{c->val dm=resources.displayMetrics;val p=Path().apply{moveTo(x1*dm.widthPixels,y1*dm.heightPixels);lineTo(x2*dm.widthPixels,y2*dm.heightPixels)};val cb=object:GestureResultCallback(){override fun onCompleted(g:GestureDescription?){if(c.isActive)c.resume(Unit){}}override fun onCancelled(g:GestureDescription?){if(c.isActive)c.resume(Unit){}}};if(!dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(p,0,650)).build(),cb,null)&&c.isActive)c.resume(Unit){}}
+    private suspend fun gesturePixels(x:Float,y:Float)=suspendCancellableCoroutine<Unit>{c->val p=Path().apply{moveTo(x,y);lineTo(x+1,y+1)};val cb=object:GestureResultCallback(){override fun onCompleted(g:GestureDescription?){if(c.isActive)c.resume(Unit){}}override fun onCancelled(g:GestureDescription?){if(c.isActive)c.resume(Unit){}}};if(!dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(p,0,160)).build(),cb,null)&&c.isActive)c.resume(Unit){}}
 }
 
 data class CaptureRow(val topic:String,val superLike:String,val posts:String,val interactions:String,val checkins:String,val reads:String){fun json()=org.json.JSONObject().put("topic",topic).put("superLike",superLike).put("posts",posts).put("interactions",interactions).put("checkins",checkins).put("reads",reads)}
