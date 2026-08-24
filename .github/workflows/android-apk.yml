@@ -32,9 +32,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK=android-app/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" chaohua-collector-v0.2.5.apk
+          cp "$APK" chaohua-collector-v0.3.0.apk
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest chaohua-collector-v0.2.5.apk --clobber
+            gh release upload latest chaohua-collector-v0.3.0.apk --clobber
           else
-            gh release create latest chaohua-collector-v0.2.5.apk --title "超话数据采集助手" --notes "小米手机安装包。首次安装后请按应用内提示开启无障碍服务并配置数据写入权限。" --latest
+            gh release create latest chaohua-collector-v0.3.0.apk --title "超话数据采集助手" --notes "小米手机安装包。首次安装后请按应用内提示开启无障碍服务并配置数据写入权限。" --latest
           fi

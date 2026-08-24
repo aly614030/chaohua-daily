@@ -8,26 +8,33 @@ import android.net.Uri
 import android.os.*
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import kotlinx.coroutines.*
+import org.json.JSONArray
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
+private data class RunRequest(val topics:List<Topic>,val upload:Boolean,val showResult:Boolean,val useRemote:Boolean)
 
 class CollectorAccessibilityService:AccessibilityService(){
     companion object{
         private var instance:CollectorAccessibilityService?=null
-        private var queued:Pair<List<Topic>,Boolean>?=null
-        fun requestRun(topics:List<Topic>,test:Boolean){instance?.run(topics,test)?:run{queued=topics to test}}
+        private var queued:RunRequest?=null
+        fun requestRun(topics:List<Topic>,upload:Boolean,showResult:Boolean,useRemote:Boolean){val req=RunRequest(topics,upload,showResult,useRemote);instance?.run(req)?:run{queued=req}}
     }
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main)
-    override fun onServiceConnected(){instance=this;queued?.also{run(it.first,it.second);queued=null}}
+    override fun onServiceConnected(){instance=this;queued?.also{run(it);queued=null}}
     override fun onDestroy(){instance=null;scope.cancel();super.onDestroy()}
     override fun onAccessibilityEvent(e:AccessibilityEvent?){}
     override fun onInterrupt(){}
-    private fun run(topics:List<Topic>,test:Boolean)=scope.launch{
-        val activeTopics=if(test)topics else RepositoryClient(applicationContext).fetchTopics().ifEmpty{topics}
+    private fun run(req:RunRequest)=scope.launch{
+        val activeTopics=if(req.useRemote)RepositoryClient(applicationContext).fetchTopics().ifEmpty{req.topics}else req.topics
         val results=mutableListOf<CaptureRow>()
-        for(topic in activeTopics){capture(topic)?.let(results::add)}
-        if(results.size==activeTopics.size&&!test)RepositoryClient(applicationContext).upload(results)
+        val failed=mutableListOf<String>()
+        activeTopics.forEachIndexed{i,topic->toast("正在采集 ${i+1}/${activeTopics.size}：${topic.name}");val row=capture(topic);if(row!=null){results.add(row);toast("${topic.name} 采集成功")}else{failed.add(topic.name);toast("${topic.name} 采集失败，继续下一个")}}
+        var uploaded=false
+        if(req.upload&&results.size==activeTopics.size){RepositoryClient(applicationContext).upload(results);uploaded=true}
+        if(req.showResult){val intent=Intent(applicationContext,MainActivity::class.java).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP;putExtra("result_json",JSONArray().apply{results.forEach{put(it.json())}}.toString());putExtra("failed",failed.joinToString("、"));putExtra("uploaded",uploaded)};startActivity(intent)}
     }
     private suspend fun capture(topic:Topic):CaptureRow?{
         val direct=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://pageinfo?containerid=${Uri.encode(topic.id)}")).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
@@ -123,6 +130,7 @@ class CollectorAccessibilityService:AccessibilityService(){
         return false
     }
     private fun match(s:String,r:Regex)=r.find(s)?.groupValues?.get(1)?.replace(" ","")
+    private fun toast(s:String)=Toast.makeText(applicationContext,s,Toast.LENGTH_LONG).show()
     private fun scrollHeaderForward():Boolean{
         val dm=resources.displayMetrics;val candidates=mutableListOf<Pair<AccessibilityNodeInfo,Rect>>()
         fun walk(n:AccessibilityNodeInfo?){if(n==null)return;val r=Rect();n.getBoundsInScreen(r);if(n.isScrollable&&r.width()>dm.widthPixels*.45f&&r.height()<dm.heightPixels*.18f&&r.centerY()<dm.heightPixels*.35f)candidates.add(n to r);for(i in 0 until n.childCount)walk(n.getChild(i))}

@@ -7,8 +7,8 @@ android {
         applicationId = "cn.chaohua.collector"
         minSdk = 29
         targetSdk = 35
-        versionCode = 25
-        versionName = "0.2.5"
+        versionCode = 30
+        versionName = "0.3.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
