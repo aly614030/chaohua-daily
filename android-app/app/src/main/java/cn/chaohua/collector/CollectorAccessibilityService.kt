@@ -41,16 +41,25 @@ class CollectorAccessibilityService:AccessibilityService(){
             delay(6000)
         }
         val first=allText();val checkin=match(first,Regex("今日签到\\s*([0-9.]+\\s*[万亿]?人?)"))?:return null
-        gesture(.78f,.18f,.30f,.18f);delay(1800)
-        val second=allText();val superLike=match(second,Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))?:return null
+        var superLike:String?=null
+        repeat(5){
+            if(superLike==null){
+                superLike=match(allText(),Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))
+                if(superLike==null){gesture(.90f,.15f,.08f,.15f);delay(1400)}
+            }
+        }
+        if(superLike==null)return null
         if(!clickTopicHeader(topic.name))return null
         var detailReady=false
-        repeat(8){delay(900);val page=allText();if(page.contains("今日新帖")||page.contains("今日新增互动")){detailReady=true;return@repeat}}
+        repeat(8){delay(900);val page=allText();if(page.contains("公开超话")||page.contains("钻超等级")||page.contains("今日新帖")||page.contains("今日新增互动")){detailReady=true;return@repeat}}
         if(!detailReady)return null
-        gesture(.50f,.78f,.50f,.35f);delay(1800)
-        val detail=allText();val posts=match(detail,Regex("今日新帖\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val interactions=match(detail,Regex("今日新增互动\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val reads=match(detail,Regex("([0-9.]+\\s*[万亿]?)\\s*阅读"))?:return null
+        var detail=allText()
+        repeat(5){
+            if(!detail.contains("今日新帖")||!detail.contains("今日新增互动")){gesture(.50f,.84f,.50f,.24f);delay(1400);detail=allText()}
+        }
+        val posts=match(detail,Regex("今日新帖\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val interactions=match(detail,Regex("今日新增互动\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val reads=match(detail,Regex("([0-9.]+\\s*[万亿]?)\\s*阅读"))?:return null
         performGlobalAction(GLOBAL_ACTION_BACK);delay(1200)
-        return CaptureRow(topic.name,superLike,posts,interactions,checkin,reads)
+        return CaptureRow(topic.name,superLike!!,posts,interactions,checkin,reads)
     }
     private fun allText():String{val out=mutableListOf<String>();fun walk(n:AccessibilityNodeInfo?){if(n==null)return;n.text?.toString()?.takeIf{it.isNotBlank()}?.let(out::add);n.contentDescription?.toString()?.takeIf{it.isNotBlank()}?.let(out::add);for(i in 0 until n.childCount)walk(n.getChild(i))};walk(rootInActiveWindow);return out.joinToString("\n")}
     private fun findExact(s:String)=rootInActiveWindow?.findAccessibilityNodeInfosByText(s)?.firstOrNull{it.text?.toString()==s}
