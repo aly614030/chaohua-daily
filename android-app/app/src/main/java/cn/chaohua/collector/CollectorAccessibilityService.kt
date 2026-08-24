@@ -43,7 +43,10 @@ class CollectorAccessibilityService:AccessibilityService(){
         val first=allText();val checkin=match(first,Regex("今日签到\\s*([0-9.]+\\s*[万亿]?人?)"))?:return null
         gesture(.78f,.18f,.30f,.18f);delay(1800)
         val second=allText();val superLike=match(second,Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))?:return null
-        (findExact(topic.name)?:findContains(topic.name))?.performAction(AccessibilityNodeInfo.ACTION_CLICK);delay(4500)
+        if(!clickTopicHeader(topic.name))return null
+        var detailReady=false
+        repeat(8){delay(900);val page=allText();if(page.contains("今日新帖")||page.contains("今日新增互动")){detailReady=true;return@repeat}}
+        if(!detailReady)return null
         gesture(.50f,.78f,.50f,.35f);delay(1800)
         val detail=allText();val posts=match(detail,Regex("今日新帖\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val interactions=match(detail,Regex("今日新增互动\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val reads=match(detail,Regex("([0-9.]+\\s*[万亿]?)\\s*阅读"))?:return null
         performGlobalAction(GLOBAL_ACTION_BACK);delay(1200)
@@ -67,6 +70,24 @@ class CollectorAccessibilityService:AccessibilityService(){
                     val r=Rect();node.getBoundsInScreen(r)
                     if(!r.isEmpty){gesturePixels(r.centerX().toFloat(),r.centerY().toFloat());return true}
                 }
+            }
+            delay(900)
+        }
+        return false
+    }
+    private suspend fun clickTopicHeader(name:String):Boolean{
+        repeat(8){
+            val nodes=rootInActiveWindow?.findAccessibilityNodeInfosByText(name).orEmpty()
+            val limit=(resources.displayMetrics.heightPixels*.38f).toInt()
+            for(node in nodes){
+                val value=node.text?.toString()?.trim().orEmpty()
+                val r=Rect();node.getBoundsInScreen(r)
+                if(value!=name||r.isEmpty||r.centerY()>limit)continue
+                var target:AccessibilityNodeInfo?=node
+                while(target!=null&&!target.isClickable)target=target.parent
+                if(target?.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)return true
+                if(node.performAction(AccessibilityNodeInfo.ACTION_CLICK))return true
+                gesturePixels(r.centerX().toFloat(),r.centerY().toFloat());return true
             }
             delay(900)
         }
