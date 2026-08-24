@@ -7,7 +7,7 @@ on:
       - 'android-app.zip'
       - '.github/workflows/android-apk.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +27,13 @@ jobs:
         with:
           name: chaohua-collector-apk
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
+      - name: 发布手机直装 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=android-app/app/build/outputs/apk/debug/app-debug.apk
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest "$APK#chaohua-collector.apk" --clobber
+          else
+            gh release create latest "$APK#chaohua-collector.apk" --title "超话数据采集助手" --notes "小米手机安装包。首次安装后请按应用内提示开启无障碍服务并配置数据写入权限。" --latest
+          fi
