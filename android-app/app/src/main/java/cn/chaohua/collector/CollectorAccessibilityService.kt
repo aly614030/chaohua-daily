@@ -23,30 +23,34 @@ class CollectorAccessibilityService:AccessibilityService(){
         fun requestRun(topics:List<Topic>,upload:Boolean,showResult:Boolean,useRemote:Boolean){val req=RunRequest(topics,upload,showResult,useRemote);instance?.run(req)?:run{queued=req}}
     }
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main)
+    private var activeJob:Job?=null
     override fun onServiceConnected(){instance=this;queued?.also{run(it);queued=null}}
     override fun onDestroy(){instance=null;scope.cancel();super.onDestroy()}
     override fun onAccessibilityEvent(e:AccessibilityEvent?){}
     override fun onInterrupt(){}
-    private fun run(req:RunRequest)=scope.launch{
-        val activeTopics=if(req.useRemote)RepositoryClient(applicationContext).fetchTopics().ifEmpty{req.topics}else req.topics
-        val results=mutableListOf<CaptureRow>()
-        val failed=mutableListOf<String>()
-        activeTopics.forEachIndexed{i,topic->toast("正在采集 ${i+1}/${activeTopics.size}：${topic.name}");val row=capture(topic);if(row!=null){results.add(row);toast("${topic.name} 采集成功")}else{failed.add(topic.name);toast("${topic.name} 采集失败，继续下一个")}}
-        var uploaded=false
-        if(req.upload&&results.size==activeTopics.size){RepositoryClient(applicationContext).upload(results);uploaded=true}
-        if(req.showResult){val intent=Intent(applicationContext,MainActivity::class.java).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP;putExtra("result_json",JSONArray().apply{results.forEach{put(it.json())}}.toString());putExtra("failed",failed.joinToString("、"));putExtra("uploaded",uploaded)};startActivity(intent)}
+    private fun run(req:RunRequest){
+        if(activeJob?.isActive==true){toast("已有采集任务正在运行，请勿重复点击");return}
+        activeJob=scope.launch{
+            try{
+                val activeTopics=if(req.useRemote)RepositoryClient(applicationContext).fetchTopics().ifEmpty{req.topics}else req.topics
+                val results=mutableListOf<CaptureRow>();val failed=mutableListOf<String>()
+                activeTopics.forEachIndexed{i,topic->
+                    toast("正在采集 ${i+1}/${activeTopics.size}：${topic.name}")
+                    val row=withTimeoutOrNull(90000){capture(topic)}
+                    performGlobalAction(GLOBAL_ACTION_BACK);delay(2600)
+                    if(row!=null){results.add(row);toast("${topic.name} 采集成功")}else{failed.add(topic.name);toast("${topic.name} 采集失败，继续下一个")}
+                }
+                var uploaded=false;if(req.upload&&results.size==activeTopics.size){RepositoryClient(applicationContext).upload(results);uploaded=true}
+                if(req.showResult){val intent=Intent(applicationContext,MainActivity::class.java).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP;putExtra("result_json",JSONArray().apply{results.forEach{put(it.json())}}.toString());putExtra("failed",failed.joinToString("、"));putExtra("uploaded",uploaded)};startActivity(intent)}
+            }finally{activeJob=null}
+        }
     }
     private suspend fun capture(topic:Topic):CaptureRow?{
         val direct=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://pageinfo?containerid=${Uri.encode(topic.id)}")).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
-        runCatching{startActivity(direct)}.getOrElse{return null};delay(7000)
-        if(!allText().contains("今日签到")){
-            val search=Intent(Intent.ACTION_VIEW,Uri.parse("sinaweibo://searchall?q=${Uri.encode(topic.name+"超话")}" )).apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK;setPackage("com.sina.weibo")}
-            runCatching{startActivity(search)}.getOrElse{return null};delay(5000)
-            var entered=clickAnyText(listOf(topic.name+"超话","#${topic.name}超话#","进入超话"),8)
-            if(!entered){clickAnyText(listOf("超话"),3);delay(1800);entered=clickAnyText(listOf(topic.name+"超话","#${topic.name}超话#","进入超话"),8)}
-            if(!entered)return null
-            delay(6000)
-        }
+        runCatching{startActivity(direct)}.getOrElse{return null}
+        var homeReady=false
+        repeat(24){if(!homeReady){delay(700);val page=allText();if(page.contains(topic.name)&&(page.contains("今日签到")||page.contains("帖子")))homeReady=true}}
+        if(!homeReady)return null
         var checkin:String?=null
         repeat(10){
             if(checkin==null){
@@ -57,20 +61,21 @@ class CollectorAccessibilityService:AccessibilityService(){
             }
         }
         var superLike:String?=null
-        repeat(5){
+        repeat(10){
             if(superLike==null){
                 superLike=match(allText(),Regex("超\\s*LIKE\\s*([0-9.]+\\s*[万亿]?人?)",RegexOption.IGNORE_CASE))
-                if(superLike==null){if(!scrollHeaderForward())gesture(.90f,.15f,.08f,.15f);delay(1400)}
+                if(superLike==null){scrollHeaderForward();delay(250);gesture(.93f,.15f,.05f,.15f);delay(1200)}
             }
         }
         if(superLike==null)return null
         if(!openTopicDetail(topic.name))return null
+        gesture(.50f,.84f,.50f,.24f);delay(1800)
         var detail=allText()
-        repeat(5){
+        repeat(6){
             if(!detail.contains("今日新帖")||!detail.contains("今日新增互动")){gesture(.50f,.84f,.50f,.24f);delay(1400);detail=allText()}
         }
         val posts=match(detail,Regex("今日新帖\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val interactions=match(detail,Regex("今日新增互动\\s*([0-9.]+\\s*[万亿]?)"))?:return null;val reads=match(detail,Regex("([0-9.]+\\s*[万亿]?)\\s*阅读"))?:return null
-        performGlobalAction(GLOBAL_ACTION_BACK);delay(1200)
+        delay(2200)
         if(checkin==null)return null
         return CaptureRow(topic.name,superLike!!,posts,interactions,checkin!!,reads)
     }
