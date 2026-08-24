@@ -57,10 +57,7 @@ class CollectorAccessibilityService:AccessibilityService(){
             }
         }
         if(superLike==null)return null
-        if(!clickTopicHeader(topic.name))return null
-        var detailReady=false
-        repeat(8){delay(900);val page=allText();if(page.contains("公开超话")||page.contains("钻超等级")||page.contains("今日新帖")||page.contains("今日新增互动")){detailReady=true;return@repeat}}
-        if(!detailReady)return null
+        if(!openTopicDetail(topic.name))return null
         var detail=allText()
         repeat(5){
             if(!detail.contains("今日新帖")||!detail.contains("今日新增互动")){gesture(.50f,.84f,.50f,.24f);delay(1400);detail=allText()}
@@ -108,6 +105,20 @@ class CollectorAccessibilityService:AccessibilityService(){
                 gesturePixels(r.centerX().toFloat(),r.centerY().toFloat());return true
             }
             delay(900)
+        }
+        return false
+    }
+    private fun isDetailPage():Boolean{val page=allText();return page.contains("公开超话")||page.contains("钻超等级")||page.contains("今日新帖")||page.contains("今日新增互动")}
+    private suspend fun openTopicDetail(name:String):Boolean{
+        val dm=resources.displayMetrics
+        repeat(4){attempt->
+            if(isDetailPage())return true
+            when(attempt){
+                0,3->clickTopicHeader(name)
+                1->gesturePixels(dm.widthPixels*.31f,dm.heightPixels*.115f)
+                else->gesturePixels(dm.widthPixels*.36f,dm.heightPixels*.135f)
+            }
+            repeat(5){delay(700);if(isDetailPage())return true}
         }
         return false
     }

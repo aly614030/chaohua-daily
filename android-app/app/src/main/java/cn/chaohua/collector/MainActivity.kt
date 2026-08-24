@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(40,60,40,40)}
         val title=TextView(this).apply{text="超话采集助手";textSize=28f;setTextColor(0xff216e39.toInt())}
-        val note=TextView(this).apply{text="版本 0.2.4\n每天 23:30 自动读取微博页面。运行时请保持手机解锁、微博已登录。\n\n首次设置：开启无障碍权限，填写 GitHub Token，然后先测试张真源超话。";textSize=16f;setPadding(0,24,0,24)}
+        val note=TextView(this).apply{text="版本 0.2.5\n每天 23:30 自动读取微博页面。运行时请保持手机解锁、微博已登录。\n\n首次设置：开启无障碍权限，填写 GitHub Token，然后先测试张真源超话。";textSize=16f;setPadding(0,24,0,24)}
         val token=EditText(this).apply{hint="GitHub Fine-grained Token";setText(prefs.getString("token",""));inputType=129}
         val save=Button(this).apply{text="保存 Token（系统加密）";setOnClickListener{prefs.edit().putString("token",token.text.toString().trim()).apply();toast("已保存")}}
         val access=Button(this).apply{text="打开无障碍设置";setOnClickListener{startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))}}
