@@ -13,9 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: 解压安卓源码
-        if: ${{ hashFiles('android-app.zip') != '' }}
-        run: unzip -o android-app.zip
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
